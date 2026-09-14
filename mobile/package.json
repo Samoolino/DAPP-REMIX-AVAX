@@ -1,0 +1,19 @@
+{
+  "name": "avax-flashloan-mobile",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Capacitor Android/iOS shell for the Avalanche Flashloan Control Plane",
+  "scripts": {
+    "sync": "npx cap sync",
+    "android": "npx cap open android",
+    "ios": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "latest"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "latest",
+    "@capacitor/android": "latest",
+    "@capacitor/ios": "latest"
+  }
+}

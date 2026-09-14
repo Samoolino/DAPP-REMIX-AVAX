@@ -1,0 +1,65 @@
+{
+  "id": "pangolin-two-router-arbitrage",
+  "name": "Pangolin Two-Router Flash-Swap Arbitrage",
+  "family": "Pangolin / V2-style flash swap",
+  "status": "RECONSTRUCTED_REVIEW_REQUIRED",
+  "source": "contracts/archive/external/PangolinTwoRouterArbitrage.sol",
+  "provenance": "Reconstructed safe implementation based on the user's supplied legacy AVAX flash-loan source. The opaque address decoder and whole-balance transfer from the legacy source are not used.",
+  "compiler": {
+    "solidity": "0.8.20",
+    "optimizer": "Verify in Remix before deployment"
+  },
+  "networks": {
+    "avalancheMainnet": 43114,
+    "avalancheFuji": 43113
+  },
+  "provider": "Pangolin/V2-style pair flash swap",
+  "constructor": [
+    "pairAddress",
+    "minimumProfit"
+  ],
+  "requiredConfiguration": [
+    "Verified deployed pair address",
+    "Verified token0/token1 addresses",
+    "Verified pair callback interface",
+    "Verified pair fee/invariant model",
+    "Verified router addresses",
+    "Verified router swap interface",
+    "Verified token decimals",
+    "Owner-controlled router allowlist",
+    "Bounded minimum outputs and deadline"
+  ],
+  "execution": [
+    "flashSwap",
+    "pangolinCall",
+    "setRouter",
+    "setPaused",
+    "setMinProfit",
+    "rescueToken"
+  ],
+  "lifecycle": [
+    "ARCHIVED",
+    "RECONSTRUCTED",
+    "IMPORTABLE",
+    "COMPILE_VALIDATED",
+    "CONTROLLED_TESTED",
+    "READY",
+    "LIVE"
+  ],
+  "gates": [
+    "Compile in Remix",
+    "Verify exact pair bytecode/interface",
+    "Verify fee calculation against deployed pair",
+    "Verify router/token addresses",
+    "Run Fuji or controlled-fork test",
+    "Verify repayment and events",
+    "Verify pause and rescue paths",
+    "Only then consider bounded mainnet execution"
+  ],
+  "automation": {
+    "AUTOMATION_ENABLED": false,
+    "AUTONOMOUS_SUBMISSION": false,
+    "CHAINLINK_AUTOMATION_ENABLED": false
+  },
+  "warning": "This template does not guarantee profit. Mainnet readiness is not asserted until every verification gate passes. Wallet signatures remain the execution authority."
+}

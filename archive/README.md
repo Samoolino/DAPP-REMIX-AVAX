@@ -19,16 +19,6 @@ Uses Aave V3 `flashLoanSimple` as the temporary liquidity source. The contract b
 - `setPaused(...)` — emergency stop.
 - `rescueToken(...)` — owner recovery of tokens held by the contract.
 
-**Procedure in Remix**
-1. Compile with Solidity 0.8.10.
-2. Deploy with the verified provider pool address and a conservative minimum profit.
-3. Confirm the deployed owner and pool.
-4. Approve only the exact router addresses intended for the test.
-5. Confirm asset decimals and the round-trip path starts and ends in the borrowed asset.
-6. Test on Fuji/controlled fork first.
-7. Call `requestFlashLoan` only after an independently verified route quote covers premium, slippage and gas.
-8. Inspect callback and settlement events before any mainnet authorization.
-
 ### 02 — Provider flashloan: two-router arbitrage
 **File:** `contracts/archive/AaveV3TwoRouterArbitrage.sol`
 
@@ -42,59 +32,59 @@ Borrows one asset from Aave V3, swaps asset A → asset B on router A, then asse
 - `setPaused(...)` — emergency stop.
 - `rescueToken(...)` — recovery.
 
-**Procedure**
-1. Deploy against the verified Aave V3 pool.
-2. Allowlist router A and router B.
-3. Prepare path A: borrowed asset → intermediate asset.
-4. Prepare path B: intermediate asset → borrowed asset.
-5. Set realistic `minOutA` and `minOutB` from fresh quotes.
-6. Use a short deadline.
-7. Test the complete callback on Fuji/controlled fork.
-8. Only proceed when the returned borrowed-asset balance exceeds principal + premium + required profit.
+### 03 — Pangolin / V2-style flash-swap two-router arbitrage
+**File:** `contracts/archive/external/PangolinTwoRouterArbitrage.sol`
 
-### 03 — Liquidity-funded / no-flashloan contract
+This is the new reconstructed implementation for the supplied legacy AVAX flash-loan concept. It uses an explicitly configured pair, an owner-controlled router allowlist, bounded swap paths/minimum outputs, a deadline, a same-token repayment check and a minimum profit floor.
+
+**Important provenance and safety boundary:** the supplied legacy source is **not** ported verbatim. Its opaque address decoder and whole-balance transfer behavior are intentionally excluded. The new implementation is a transparent template that must be verified against the actual deployed pair and routers before use.
+
+**Core functions**
+- `flashSwap(...)` — starts the pair flash swap and defines both router routes.
+- `pangolinCall(...)` — pair-only callback; executes the two swaps and repays the pair.
+- `setRouter(...)` — owner allowlists routers.
+- `setMinProfit(...)` — establishes the profit floor.
+- `setPaused(...)` — emergency stop.
+- `rescueToken(...)` — recovery.
+
+**Required gates before controlled execution**
+1. Verify the exact Avalanche pair address.
+2. Verify `token0()` and `token1()`.
+3. Verify the pair callback selector and flash-swap semantics.
+4. Verify the pair fee/invariant model; the template currently assumes the common V2-style 0.3% formula and must not be treated as universal.
+5. Verify exact router addresses and `swapExactTokensForTokens` behavior.
+6. Verify token decimals and route assets.
+7. Compile the source in Remix.
+8. Run Fuji or a controlled-fork test and prove callback, swaps, repayment, events, pause and rescue.
+9. Only after those gates should a bounded mainnet transaction be considered.
+
+**Manifest:** `contracts/archive/external/PangolinTwoRouterArbitrage.manifest.json`
+
+### 04 — Pangolin flash-swap safe adapter
+**File:** `contracts/archive/external/AVAXFlashLoanSafeAdapter.sol`
+
+A lower-level repayment adapter reconstructed from the same legacy source. It removes the opaque destination decoder and does not perform arbitrary arbitrage itself. It is useful for interface/callback testing, but it is **not** a complete arbitrage engine.
+
+**Status:** `REVIEW_REQUIRED` until the configured pair and fee model are verified.
+
+### 05 — Liquidity-funded / no-flashloan contract
 **File:** `contracts/archive/LiquidityFundedExecutor.sol`
 
 Uses tokens already deposited into the contract rather than borrowing them during execution. This is useful for treasury-funded market making, inventory arbitrage, or manually funded route execution.
 
-**Core functions**
-- `depositToken(...)` — owner deposits execution inventory.
-- `executeRoute(...)` — owner executes an approved route against an approved router.
-- `setRouter(...)` — allowlists execution venues.
-- `setMinProfit(...)` — establishes the route profit floor.
-- `setPaused(...)` — emergency stop.
-- `withdrawToken(...)` — owner withdrawal/recovery.
+**Status:** `REPAIR_REQUIRED` because its generalized cross-token profit assertion and deposit accounting require correction before production use.
 
-**Procedure**
-1. Deploy and verify ownership.
-2. Allowlist the intended router.
-3. Transfer the execution token into the contract.
-4. Verify available inventory and token decimals.
-5. Obtain a fresh quote and set a protective minimum output.
-6. Execute the route from Remix.
-7. Verify resulting balances and events.
-8. Withdraw only after accounting for retained operating inventory.
-
-### 04 — Mixed-liquidity executor
+### 06 — Mixed-liquidity executor
 **File:** `contracts/archive/MixedLiquidityExecutor.sol`
 
 Combines pre-funded inventory with an optional external liquidity adapter. This family is intended for future integrations where a route may use internal capital first and a provider-specific liquidity source second.
 
 **Important:** this is an adapter architecture, not a claim that every external provider is interchangeable. Each provider must have its own verified interface, addresses and repayment rules.
 
-### 05 — Multi-provider flashloan adapter
+### 07 — Multi-provider flashloan adapter
 **File:** `contracts/archive/MultiProviderFlashAdapter.sol`
 
 Provides a common control surface for multiple provider adapters. The archive records the provider selection, but each provider implementation remains isolated because callback signatures, fees, supported assets and deployment addresses differ.
-
-**Procedure**
-1. Select provider adapter.
-2. Verify provider pool/address for the selected network.
-3. Verify supported asset and fee model.
-4. Select route and repayment constraints.
-5. Run controlled test.
-6. Review emitted provider and settlement events.
-7. Only then authorize the mainnet route.
 
 ## Remix execution states
 
@@ -107,6 +97,10 @@ Provides a common control surface for multiple provider adapters. The archive re
 **READY** → deployment, ownership, bytecode, liquidity and route evidence are recorded.
 
 **LIVE** → explicit owner authorization only. The DApp/cloud database cannot grant spending authority.
+
+## Quarantine rule for supplied legacy source
+
+The original `AVAX FLASH LOAN UPDATED v2.0` source remains quarantined. It contains an opaque destination-address construction and a function that can transfer the contract's entire AVAX balance to that decoded destination. It must not be imported as executable production logic.
 
 ## Why multiple families are archived
 
